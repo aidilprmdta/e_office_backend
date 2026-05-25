@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 class UserCreate(BaseModel):
-    username: str
+    username: str  # NIM untuk mahasiswa, NIDN untuk dosen
     password: str
     nama: Optional[str] = None
     role: str  # mahasiswa / dosen / admin
@@ -17,5 +17,4 @@ class UserResponse(BaseModel):
     nama: Optional[str]
     role: str
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
