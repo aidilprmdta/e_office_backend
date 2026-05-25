@@ -8,7 +8,6 @@ from passlib.context import CryptContext
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
-# Gunakan passlib untuk hash password (lebih aman & konsisten)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
@@ -24,7 +23,6 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
     - Role harus salah satu dari: mahasiswa, dosen, admin
     - Username harus unik (NIM untuk mahasiswa, NIDN untuk dosen)
     """
-    # Validasi role
     allowed_roles = ["mahasiswa", "dosen", "admin"]
     if data.role not in allowed_roles:
         raise HTTPException(
@@ -32,7 +30,6 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
             detail=f"Role tidak valid. Pilih salah satu: {', '.join(allowed_roles)}"
         )
 
-    # Cek username sudah ada atau belum
     existing = db.query(User).filter(User.username == data.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username sudah dipakai")
