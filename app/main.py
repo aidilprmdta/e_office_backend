@@ -15,6 +15,7 @@ from app.routers import admin
 from app.routers import notifikasi as notifikasi_router
 
 import os
+from app.routers import mahasiswa
 
 
 # =====================================================
@@ -77,6 +78,7 @@ app.include_router(mahasiswa.router)
 app.include_router(dosen.router)
 
 app.include_router(admin.router)
+app.include_router(mahasiswa.router)
 
 app.include_router(notifikasi_router.router)
 
