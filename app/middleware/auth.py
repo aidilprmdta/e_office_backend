@@ -51,10 +51,19 @@ def get_current_user(token: dict = Depends(verify_token), db: Session = Depends(
     return user
 
 def require_role(*roles):
-    """
-    Dependency factory untuk membatasi akses berdasarkan role.
-    Contoh pemakaian: Depends(require_role("dosen", "admin"))
-    """
+    def checker(current_user: User = Depends(get_current_user)):
+        user_role = current_user.role.strip().lower()
+
+        allowed_roles = [r.strip().lower() for r in roles]
+
+        if user_role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role '{current_user.role}' tidak memiliki akses"
+            )
+        return current_user
+
+    return checker
     def checker(current_user: User = Depends(get_current_user)):
         if current_user.role not in roles:
             raise HTTPException(
