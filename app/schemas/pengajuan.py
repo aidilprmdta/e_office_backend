@@ -3,12 +3,12 @@ from typing import Optional
 from datetime import datetime
 
 class PengajuanCreate(BaseModel):
-    jenis_pengajuan: str
+    jenis_pengajuan: str  # "Surat" atau "Tugas Akhir"
     judul_perihal: str
     deskripsi: Optional[str] = None
 
 class PengajuanUpdate(BaseModel):
-    status: str  # disetujui / ditolak
+    status: str            # "disetujui" atau "ditolak"
     catatan_dosen: Optional[str] = None
 
 class PengajuanResponse(BaseModel):
@@ -22,5 +22,4 @@ class PengajuanResponse(BaseModel):
     catatan_dosen: Optional[str]
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}

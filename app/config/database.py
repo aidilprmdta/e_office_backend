@@ -15,6 +15,10 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db():
+    """
+    Dependency FastAPI: buka koneksi DB, yield ke endpoint,
+    lalu tutup otomatis setelah request selesai.
+    """
     db = SessionLocal()
     try:
         yield db

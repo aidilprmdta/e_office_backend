@@ -6,7 +6,8 @@ class Notifikasi(Base):
     __tablename__ = "notifikasi"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     pesan = Column(String(255), nullable=False)
-    is_read = Column(Boolean, default=False)
+    # Default False = belum dibaca
+    is_read = Column(Boolean, default=False, nullable=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
