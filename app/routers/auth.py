@@ -1,81 +1,116 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from passlib.context import CryptContext
+
 from app.config.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin, UserResponse
 from app.middleware.auth import create_token, get_current_user
-from passlib.context import CryptContext
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
-# Gunakan passlib untuk hash password (lebih aman & konsisten)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
+# =========================
+# PASSWORD
+# =========================
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
+
 
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+
+# =========================
+# REGISTER
+# =========================
+@router.post("/register")
 def register(data: UserCreate, db: Session = Depends(get_db)):
-    """
-    Daftarkan akun baru.
-    - Role harus salah satu dari: mahasiswa, dosen, admin
-    - Username harus unik (NIM untuk mahasiswa, NIDN untuk dosen)
-    """
-    # Validasi role
+
     allowed_roles = ["mahasiswa", "dosen", "admin"]
+
     if data.role not in allowed_roles:
         raise HTTPException(
             status_code=400,
-            detail=f"Role tidak valid. Pilih salah satu: {', '.join(allowed_roles)}"
+            detail="Role tidak valid"
         )
 
-    # Cek username sudah ada atau belum
-    existing = db.query(User).filter(User.username == data.username).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Username sudah dipakai")
+    existing_user = db.query(User).filter(
+        User.username == data.username
+    ).first()
 
-    hashed = hash_password(data.password)
-    user = User(
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Username sudah dipakai"
+        )
+
+    hashed_password = hash_password(data.password)
+
+    new_user = User(
         username=data.username,
-        password=hashed,
+        password=hashed_password,
         nama=data.nama,
         role=data.role
     )
-    db.add(user)
+
+    db.add(new_user)
     db.commit()
-    db.refresh(user)
+    db.refresh(new_user)
+
     return {
         "message": "Registrasi berhasil",
-        "user": UserResponse.model_validate(user)
+        "user": UserResponse.model_validate(new_user)
     }
 
+
+# =========================
+# LOGIN
+# =========================
 @router.post("/login")
 def login(data: UserLogin, db: Session = Depends(get_db)):
-    """
-    Login dan dapatkan JWT token.
-    Token berlaku 8 jam. Kirim token ini di header setiap request:
-    Authorization: Bearer <token>
-    """
-    user = db.query(User).filter(User.username == data.username).first()
-    if not user or not verify_password(data.password, user.password):
+
+    user = db.query(User).filter(
+        User.username == data.username
+    ).first()
+
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Username atau password salah"
+            detail="Username tidak ditemukan"
         )
 
-    token = create_token({"id": user.id, "username": user.username, "role": user.role})
+    if not verify_password(data.password, user.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Password salah"
+        )
+
+    token_data = {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role
+    }
+
+    token = create_token(token_data)
+
     return {
         "access_token": token,
         "token_type": "bearer",
-        "role": user.role,
-        "nama": user.nama,
-        "id": user.id
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "nama": user.nama,
+            "role": user.role
+        }
     }
 
+
+# =========================
+# CURRENT USER
+# =========================
 @router.get("/me")
 def get_me(current_user: User = Depends(get_current_user)):
-    """Cek siapa user yang sedang login berdasarkan token (berguna untuk FE)"""
     return UserResponse.model_validate(current_user)
