@@ -47,6 +47,7 @@ def buat_pengajuan(
 
     jenis_pengajuan: str = Form(...),
     judul_perihal: str = Form(...),
+    kategori: Optional[str] = Form(None), 
     deskripsi: Optional[str] = Form(None),
 
     file: Optional[UploadFile] = File(None),
@@ -91,6 +92,7 @@ def buat_pengajuan(
         mahasiswa_id=current_user.id,
         jenis_pengajuan=jenis_pengajuan,
         judul_perihal=judul_perihal,
+        kategori=kategori,
         deskripsi=deskripsi,
         file_url=file_url
     )
@@ -112,6 +114,15 @@ def get_pengajuan_saya(
     )
 ):
 
+    return db.query(Pengajuan).filter(
+        Pengajuan.mahasiswa_id == current_user.id
+    ).all()
+# Alias /me untuk kompatibilitas FE
+@router.get("/pengajuan/me")
+def get_pengajuan_me(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("mahasiswa"))
+):
     return db.query(Pengajuan).filter(
         Pengajuan.mahasiswa_id == current_user.id
     ).all()
