@@ -7,15 +7,12 @@ from app.config.database import engine
 from app.models import user
 from app.models import pengajuan
 from app.models import notifikasi
-
+import os
 from app.routers import auth
-from app.routers import mahasiswa
 from app.routers import dosen
+from app.routers import mahasiswa
 from app.routers import admin
 from app.routers import notifikasi as notifikasi_router
-
-import os
-from app.routers import mahasiswa
 
 
 # =====================================================
@@ -45,6 +42,7 @@ origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 app.add_middleware(

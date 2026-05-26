@@ -20,7 +20,7 @@ def get_semua_pengajuan(
     db: Session = Depends(get_db),
 
     current_user: User = Depends(
-        require_role("dosen")
+        require_role("dosen", "admin")
     )
 ):
 
@@ -37,7 +37,7 @@ def update_pengajuan(
     db: Session = Depends(get_db),
 
     current_user: User = Depends(
-        require_role("dosen")
+        require_role("dosen", "admin")
     )
 ):
 
