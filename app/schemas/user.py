@@ -11,6 +11,12 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class UserAdminUpdate(BaseModel):
+    nama: Optional[str] = None
+    role: str
+    password: Optional[str] = None
+
+
 class UserResponse(BaseModel):
     id: int
     username: str
