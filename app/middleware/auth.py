@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 load_dotenv()
 JWT_SECRET = os.getenv("JWT_SECRET", "rahasia")
 ALGORITHM = "HS256"
-# Token berlaku 8 jam
 ACCESS_TOKEN_EXPIRE_HOURS = 8
 
 security = HTTPBearer()
@@ -53,22 +52,11 @@ def get_current_user(token: dict = Depends(verify_token), db: Session = Depends(
 def require_role(*roles):
     def checker(current_user: User = Depends(get_current_user)):
         user_role = current_user.role.strip().lower()
-
         allowed_roles = [r.strip().lower() for r in roles]
-
         if user_role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Role '{current_user.role}' tidak memiliki akses"
-            )
-        return current_user
-
-    return checker
-    def checker(current_user: User = Depends(get_current_user)):
-        if current_user.role not in roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Akses ditolak. Halaman ini hanya untuk: {', '.join(roles)}"
+                detail=f"Role '{current_user.role}' tidak memiliki akses. Hanya untuk: {', '.join(allowed_roles)}"
             )
         return current_user
     return checker
