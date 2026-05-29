@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional
 import shutil
 import os
@@ -7,6 +8,7 @@ import uuid
 
 from app.config.database import get_db
 from app.models.pengajuan import Pengajuan
+from app.models.notifikasi import Notifikasi
 from app.models.user import User
 from app.schemas.pengajuan import PengajuanResponse
 from app.middleware.auth import require_role
@@ -20,6 +22,22 @@ UPLOAD_DIR = "uploads/"
 
 ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx"}
 MAX_FILE_SIZE = 5 * 1024 * 1024
+
+
+def notify_reviewers(db: Session, pengajuan: Pengajuan, mahasiswa: User):
+    """Kirim notifikasi ke dosen & admin saat mahasiswa mengajukan surat/TA."""
+    reviewers = db.query(User).filter(
+        func.lower(User.role).in_(["dosen", "admin"])
+    ).all()
+
+    nama = mahasiswa.nama or mahasiswa.username
+    pesan = (
+        f"Pengajuan baru dari {nama}: "
+        f"{pengajuan.judul_perihal} ({pengajuan.jenis_pengajuan})"
+    )
+
+    for reviewer in reviewers:
+        db.add(Notifikasi(user_id=reviewer.id, pesan=pesan[:255]))
 
 
 def validate_file(file: UploadFile):
@@ -101,6 +119,9 @@ def buat_pengajuan(
     db.commit()
     db.refresh(pengajuan)
 
+    notify_reviewers(db, pengajuan, current_user)
+    db.commit()
+
     return pengajuan
 
 
@@ -126,3 +147,34 @@ def get_pengajuan_me(
     return db.query(Pengajuan).filter(
         Pengajuan.mahasiswa_id == current_user.id
     ).all()
+
+
+@router.delete("/pengajuan/{id}")
+def hapus_pengajuan(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("mahasiswa"))
+):
+    pengajuan = db.query(Pengajuan).filter(
+        Pengajuan.id == id,
+        Pengajuan.mahasiswa_id == current_user.id
+    ).first()
+
+    if not pengajuan:
+        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
+
+    if (pengajuan.status or "").lower() != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail="Hanya pengajuan berstatus pending yang dapat dihapus"
+        )
+
+    if pengajuan.file_url:
+        file_path = os.path.join(UPLOAD_DIR, pengajuan.file_url)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+
+    db.delete(pengajuan)
+    db.commit()
+
+    return {"message": "Pengajuan berhasil dihapus"}
