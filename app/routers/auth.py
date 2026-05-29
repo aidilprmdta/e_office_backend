@@ -11,10 +11,6 @@ router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
-# =========================
-# PASSWORD
-# =========================
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -23,9 +19,6 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-# =========================
-# REGISTER
-# =========================
 @router.post("/register")
 def register(data: UserCreate, db: Session = Depends(get_db)):
 
@@ -53,7 +46,7 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
         username=data.username,
         password=hashed_password,
         nama=data.nama,
-        role=data.role
+        role=data.role.strip().lower()
     )
 
     db.add(new_user)
@@ -65,10 +58,6 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
         "user": UserResponse.model_validate(new_user)
     }
 
-
-# =========================
-# LOGIN
-# =========================
 @router.post("/login")
 def login(data: UserLogin, db: Session = Depends(get_db)):
 
@@ -91,7 +80,7 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
     token_data = {
         "id": user.id,
         "username": user.username,
-        "role": user.role
+        "role": user.role.strip().lower()
     }
 
     token = create_token(token_data)
@@ -103,14 +92,10 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
             "id": user.id,
             "username": user.username,
             "nama": user.nama,
-            "role": user.role
+            "role": user.role.strip().lower()
         }
     }
 
-
-# =========================
-# CURRENT USER
-# =========================
 @router.get("/me")
 def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse.model_validate(current_user)
