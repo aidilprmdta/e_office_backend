@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
 
 from app.config.database import engine
+from app.config.migrate import run_migrations
 
 from app.models import user
 from app.models import pengajuan
@@ -15,17 +17,12 @@ from app.routers import admin
 from app.routers import notifikasi as notifikasi_router
 
 
-# =====================================================
-# CREATE DATABASE TABLES
-# =====================================================
 user.Base.metadata.create_all(bind=engine)
 pengajuan.Base.metadata.create_all(bind=engine)
 notifikasi.Base.metadata.create_all(bind=engine)
+run_migrations()
 
 
-# =====================================================
-# FASTAPI APP
-# =====================================================
 app = FastAPI(
     title="E-Office Kampus API",
     description="Sistem Informasi Surat-Menyurat & Tugas Akhir",
@@ -34,29 +31,33 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-
-# =====================================================
-# CORS
-# =====================================================
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
-# =====================================================
-# STATIC FILES
-# =====================================================
+@app.middleware("http")
+async def handle_options_preflight(request: Request, call_next):
+    """Pastikan preflight OPTIONS tidak gagal sebelum auth middleware."""
+    if request.method == "OPTIONS":
+        origin = request.headers.get("origin", "*")
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+                "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Origin",
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Max-Age": "86400",
+            },
+        )
+    return await call_next(request)
+
 os.makedirs("uploads", exist_ok=True)
 
 app.mount(
@@ -65,10 +66,6 @@ app.mount(
     name="uploads"
 )
 
-
-# =====================================================
-# ROUTERS
-# =====================================================
 app.include_router(auth.router)
 
 app.include_router(mahasiswa.router)
@@ -76,14 +73,10 @@ app.include_router(mahasiswa.router)
 app.include_router(dosen.router)
 
 app.include_router(admin.router)
-app.include_router(mahasiswa.router)
 
 app.include_router(notifikasi_router.router)
 
 
-# =====================================================
-# ROOT
-# =====================================================
 @app.get("/")
 def read_root():
 
