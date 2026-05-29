@@ -31,15 +31,7 @@ CREATE DATABASE db_eoffice;
 
 ### 4. Setting Environment
 
-Edit file `.env` sesuai konfigurasi MySQL kamu:
-
-```env
-DB_HOST=localhost
-DB_USER=root
-DB_PASS=            ← isi password MySQL kamu (kosong jika tidak ada)
-DB_NAME=db_eoffice
-JWT_SECRET=rahasia_sistem_eoffice_kampus_kita_2026
-```
+Edit file `.env` sesuai konfigurasi MySQL kamu
 
 ### 5. Jalankan Server
 
