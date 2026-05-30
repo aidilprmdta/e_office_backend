@@ -78,6 +78,29 @@ Dokumentasi API: `http://localhost:8000/docs`
 | POST | `/api/admin/users` | Admin | Tambah user baru |
 | DELETE | `/api/admin/users/{id}` | Admin | Hapus akun user |
 
+### 📬 Workflow Surat v2 (`/api/admin` + `/api/mahasiswa`)
+| Method | Endpoint | Akses | Keterangan |
+|--------|----------|-------|------------|
+| PUT | `/api/admin/pengajuan/{id}/status` | Admin, Dosen | Update status workflow |
+| POST | `/api/admin/pengajuan/{id}/upload-hasil` | Admin, Dosen | Upload PDF surat jadi |
+| GET | `/api/admin/pengajuan/{id}/tracking` | Admin, Dosen | Timeline status |
+| GET | `/api/mahasiswa/pengajuan/{id}/tracking` | Mahasiswa | Timeline milik sendiri |
+| PUT | `/api/mahasiswa/pengajuan/{id}/revisi` | Mahasiswa | Kirim ulang setelah revisi |
+
+**Status workflow:** `diajukan` → `diproses_admin` → `menunggu_tanda_tangan` → `selesai` / `perlu_revisi` / `ditolak`
+
+**Migrasi database manual:** jalankan `database/migrations_v2.sql` di MySQL, atau restart server (auto via `app/config/migrate.py`).
+
+---
+
+## 🌐 Port & Frontend
+
+| Layanan | Port default | URL |
+|---------|--------------|-----|
+| Backend FastAPI | 8000 | http://localhost:8000 |
+| Frontend Vite | 5173 | http://localhost:5173 |
+| API base (FE `.env`) | — | `VITE_API_BASE_URL=http://localhost:8000/api` |
+
 ---
 
 ## 🔑 Cara Kirim Token ke API (untuk FE)

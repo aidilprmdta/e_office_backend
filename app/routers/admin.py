@@ -28,12 +28,13 @@ def dashboard_admin(
     total_user = db.query(func.count(User.id)).scalar()
     total_pengajuan = db.query(func.count(Pengajuan.id)).scalar()
 
+    active_statuses = ["diajukan", "diproses_admin", "menunggu_tanda_tangan", "perlu_revisi", "pending"]
     total_pending = db.query(func.count(Pengajuan.id)).filter(
-        func.lower(Pengajuan.status) == "pending"
+        func.lower(Pengajuan.status).in_(active_statuses)
     ).scalar()
 
     total_disetujui = db.query(func.count(Pengajuan.id)).filter(
-        func.lower(Pengajuan.status) == "disetujui"
+        func.lower(Pengajuan.status).in_(["selesai", "disetujui"])
     ).scalar()
 
     total_ditolak = db.query(func.count(Pengajuan.id)).filter(
