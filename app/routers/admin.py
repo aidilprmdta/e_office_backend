@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -48,6 +51,71 @@ def dashboard_admin(
         "total_disetujui": total_disetujui,
         "total_ditolak": total_ditolak
     }
+
+
+@router.get("/analytics")
+def dashboard_analytics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    bulan: int = 12,
+):
+    """Grafik beban surat per bulan & distribusi kategori (admin)."""
+    bulan = max(3, min(bulan, 24))
+    since = datetime.utcnow() - timedelta(days=bulan * 31)
+
+    surat_rows = (
+        db.query(Pengajuan)
+        .filter(
+            Pengajuan.created_at >= since,
+            func.lower(Pengajuan.jenis_pengajuan) == "surat",
+        )
+        .all()
+    )
+
+    monthly: dict[str, int] = defaultdict(int)
+    categories: dict[str, int] = defaultdict(int)
+
+    for p in surat_rows:
+        if p.created_at:
+            key = p.created_at.strftime("%Y-%m")
+            monthly[key] += 1
+        kat = (p.kategori or "Lainnya").strip() or "Lainnya"
+        categories[kat] += 1
+
+    sorted_months = sorted(monthly.keys())[-bulan:]
+    beban_bulanan = [
+        {"bulan": m, "label": _bulan_label(m), "jumlah": monthly.get(m, 0)}
+        for m in sorted_months
+    ]
+
+    total_kat = sum(categories.values()) or 1
+    distribusi_kategori = [
+        {
+            "kategori": k,
+            "jumlah": v,
+            "persen": round((v / total_kat) * 100, 1),
+        }
+        for k, v in sorted(categories.items(), key=lambda x: -x[1])
+    ]
+
+    return {
+        "beban_bulanan": beban_bulanan,
+        "distribusi_kategori": distribusi_kategori,
+        "total_surat_periode": len(surat_rows),
+    }
+
+
+def _bulan_label(ym: str) -> str:
+    months_id = [
+        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+        "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+    ]
+    try:
+        y, m = ym.split("-")
+        return f"{months_id[int(m) - 1]} {y}"
+    except (ValueError, IndexError):
+        return ym
+
 
 @router.get("/users")
 def get_all_users(

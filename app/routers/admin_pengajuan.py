@@ -21,6 +21,7 @@ from app.services.pengajuan_service import (
     build_tracking_response,
 )
 from app.services.notify_channels import send_email, send_whatsapp_fonnte
+from app.core.kode_verifikasi import assign_kode_if_needed
 
 router = APIRouter(prefix="/api/admin", tags=["Admin Pengajuan"])
 
@@ -81,14 +82,16 @@ async def update_status_surat(
             {"pengajuan_id": p.id},
         )
     elif new_status == PengajuanStatus.SELESAI.value:
+        kode = assign_kode_if_needed(p)
         meta = {
             "file_url": p.file_hasil_url,
             "pengajuan_id": p.id,
             "judul": p.judul_perihal,
+            "kode_verifikasi": kode,
         }
         pesan = (
             f"Surat '{p.judul_perihal}' telah selesai. "
-            "Dokumen digital tersedia untuk diunduh."
+            f"Kode verifikasi: {kode}. Dokumen digital tersedia untuk diunduh."
         )
         notify_mahasiswa(db, p, "surat_selesai", pesan, meta)
         mhs = db.query(User).filter(User.id == p.mahasiswa_id).first()
