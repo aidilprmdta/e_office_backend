@@ -14,6 +14,8 @@ from app.routers import mahasiswa
 from app.routers import admin
 from app.routers import admin_pengajuan
 from app.routers import notifikasi as notifikasi_router
+from app.routers import search
+from app.routers import verifikasi
 
 
 user.Base.metadata.create_all(bind=engine)
@@ -77,6 +79,10 @@ app.include_router(admin.router)
 app.include_router(admin_pengajuan.router)
 
 app.include_router(notifikasi_router.router)
+
+app.include_router(search.router)
+
+app.include_router(verifikasi.router)
 
 
 @app.get("/")

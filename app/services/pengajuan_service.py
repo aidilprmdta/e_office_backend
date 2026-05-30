@@ -73,5 +73,6 @@ def build_tracking_response(db: Session, pengajuan: Pengajuan):
         catatan_revisi=pengajuan.catatan_revisi,
         file_hasil_url=pengajuan.file_hasil_url,
         file_url=pengajuan.file_url,
+        kode_verifikasi=pengajuan.kode_verifikasi,
         timeline=timeline,
     )

@@ -63,6 +63,28 @@ def run_migrations():
                     "DEFAULT 'diajukan'"
                 )
             )
+            columns = {col["name"] for col in inspector.get_columns("pengajuan")}
+            _add_column_if_missing(
+                conn,
+                "pengajuan",
+                "kode_verifikasi",
+                "ADD COLUMN kode_verifikasi VARCHAR(32) NULL",
+                columns,
+            )
+            conn.execute(
+                text(
+                    """
+                    UPDATE pengajuan
+                    SET kode_verifikasi = UPPER(
+                        CONCAT('EO-', YEAR(created_at), '-',
+                               LPAD(id, 4, '0'), '-',
+                               SUBSTRING(MD5(CONCAT(id, '-', created_at)), 1, 6))
+                    )
+                    WHERE kode_verifikasi IS NULL
+                      AND LOWER(status) IN ('selesai', 'disetujui')
+                    """
+                )
+            )
 
     if inspector.has_table("notifikasi"):
         columns = {col["name"] for col in inspector.get_columns("notifikasi")}

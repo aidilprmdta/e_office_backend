@@ -18,6 +18,7 @@ class Pengajuan(Base):
     status = Column(String(50), default="diajukan")
     catatan_dosen = Column(String(255))
     catatan_revisi = Column(Text)
+    kode_verifikasi = Column(String(32), unique=True, nullable=True, index=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 

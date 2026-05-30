@@ -9,6 +9,7 @@ from app.schemas.pengajuan import PengajuanUpdate
 from app.middleware.auth import require_role
 from app.core.pengajuan_status import normalize_status, PengajuanStatus
 from app.services.pengajuan_service import log_status_change, notify_mahasiswa
+from app.core.kode_verifikasi import assign_kode_if_needed
 
 router = APIRouter(
     prefix="/api/dosen",
@@ -48,6 +49,7 @@ def get_semua_pengajuan(
             "status": normalize_status(p.status),
             "catatan_dosen": p.catatan_dosen,
             "catatan_revisi": p.catatan_revisi,
+            "kode_verifikasi": p.kode_verifikasi,
             "created_at": p.created_at,
             "updated_at": p.updated_at,
         })
@@ -102,8 +104,13 @@ def update_pengajuan(
     judul = pengajuan.judul_perihal or ""
 
     if new_status == PengajuanStatus.SELESAI.value:
-        meta = {"file_url": pengajuan.file_hasil_url, "pengajuan_id": pengajuan.id}
-        pesan = f"{jenis} '{judul}' telah selesai."
+        kode = assign_kode_if_needed(pengajuan)
+        meta = {
+            "file_url": pengajuan.file_hasil_url,
+            "pengajuan_id": pengajuan.id,
+            "kode_verifikasi": kode,
+        }
+        pesan = f"{jenis} '{judul}' telah selesai. Kode verifikasi: {kode}."
         notify_mahasiswa(db, pengajuan, "surat_selesai", pesan, meta)
     elif new_status == PengajuanStatus.DITOLAK.value:
         pesan = f"{jenis} '{judul}' ditolak."
