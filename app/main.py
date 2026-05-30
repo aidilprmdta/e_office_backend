@@ -6,19 +6,19 @@ from starlette.responses import Response
 from app.config.database import engine
 from app.config.migrate import run_migrations
 
-from app.models import user
-from app.models import pengajuan
-from app.models import notifikasi
+from app.models import user, pengajuan, notifikasi, pengajuan_status_log
 import os
 from app.routers import auth
 from app.routers import dosen
 from app.routers import mahasiswa
 from app.routers import admin
+from app.routers import admin_pengajuan
 from app.routers import notifikasi as notifikasi_router
 
 
 user.Base.metadata.create_all(bind=engine)
 pengajuan.Base.metadata.create_all(bind=engine)
+pengajuan_status_log.Base.metadata.create_all(bind=engine)
 notifikasi.Base.metadata.create_all(bind=engine)
 run_migrations()
 
@@ -73,6 +73,8 @@ app.include_router(mahasiswa.router)
 app.include_router(dosen.router)
 
 app.include_router(admin.router)
+
+app.include_router(admin_pengajuan.router)
 
 app.include_router(notifikasi_router.router)
 

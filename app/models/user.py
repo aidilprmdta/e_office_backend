@@ -35,7 +35,9 @@ class User(Base):
         nullable=False
     )
 
-    # Relasi: satu mahasiswa punya banyak pengajuan
+    email = Column(String(120), nullable=True)
+    no_hp = Column(String(20), nullable=True)
+
     pengajuan_list = relationship(
         "Pengajuan",
         back_populates="mahasiswa",
