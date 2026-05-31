@@ -17,52 +17,35 @@ router = APIRouter(
 )
 
 UPLOAD_DIR = "uploads/"
-
 ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx"}
 MAX_FILE_SIZE = 5 * 1024 * 1024
 
 
 def validate_file(file: UploadFile):
-
     ext = os.path.splitext(file.filename)[1].lower()
-
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail="Format file tidak didukung"
-        )
+        raise HTTPException(status_code=400, detail="Format file tidak didukung")
 
     file.file.seek(0, 2)
     size = file.file.tell()
     file.file.seek(0)
 
     if size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail="Ukuran file maksimal 5MB"
-        )
+        raise HTTPException(status_code=400, detail="Ukuran file maksimal 5MB")
+
 
 @router.post("/pengajuan", response_model=PengajuanResponse)
 def buat_pengajuan(
-
     jenis_pengajuan: str = Form(...),
     judul_perihal: str = Form(...),
-    kategori: Optional[str] = Form(None), 
+    kategori: Optional[str] = Form(None),
     deskripsi: Optional[str] = Form(None),
-
     file: Optional[UploadFile] = File(None),
-
     db: Session = Depends(get_db),
-
-    current_user: User = Depends(
-        require_role("mahasiswa")
-    )
+    current_user: User = Depends(require_role("mahasiswa"))
 ):
-
-    # rapikan input
     jenis_pengajuan = jenis_pengajuan.strip()
 
-    # validasi jenis pengajuan
     if jenis_pengajuan not in ["Surat", "Tugas Akhir"]:
         raise HTTPException(
             status_code=400,
@@ -70,22 +53,14 @@ def buat_pengajuan(
         )
 
     file_url = None
-
     if file and file.filename:
-
         validate_file(file)
-
         os.makedirs(UPLOAD_DIR, exist_ok=True)
-
         safe_name = file.filename.replace(" ", "_")
-
         filename = f"{uuid.uuid4()}_{safe_name}"
-
         path = os.path.join(UPLOAD_DIR, filename)
-
         with open(path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-
         file_url = filename
 
     pengajuan = Pengajuan(
@@ -100,29 +75,77 @@ def buat_pengajuan(
     db.add(pengajuan)
     db.commit()
     db.refresh(pengajuan)
-
     return pengajuan
 
 
 @router.get("/pengajuan")
 def get_pengajuan_saya(
-
-    db: Session = Depends(get_db),
-
-    current_user: User = Depends(
-        require_role("mahasiswa")
-    )
-):
-
-    return db.query(Pengajuan).filter(
-        Pengajuan.mahasiswa_id == current_user.id
-    ).all()
-# Alias /me untuk kompatibilitas FE
-@router.get("/pengajuan/me")
-def get_pengajuan_me(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("mahasiswa"))
 ):
+    """Ambil semua pengajuan milik mahasiswa yang sedang login"""
     return db.query(Pengajuan).filter(
         Pengajuan.mahasiswa_id == current_user.id
-    ).all()
+    ).order_by(Pengajuan.created_at.desc()).all()
+
+
+@router.delete("/pengajuan/{id}")
+def hapus_pengajuan(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("mahasiswa"))
+):
+    """Hapus pengajuan milik mahasiswa (hanya yang masih Pending)"""
+    pengajuan = db.query(Pengajuan).filter(
+        Pengajuan.id == id,
+        Pengajuan.mahasiswa_id == current_user.id
+    ).first()
+
+    if not pengajuan:
+        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
+
+    if pengajuan.status != "Pending":
+        raise HTTPException(
+            status_code=400,
+            detail="Hanya pengajuan berstatus Pending yang dapat dihapus"
+        )
+
+    if pengajuan.file_url:
+        file_path = os.path.join(UPLOAD_DIR, pengajuan.file_url)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    db.delete(pengajuan)
+    db.commit()
+    return {"message": "Pengajuan berhasil dihapus"}
+@router.get("/pengajuan/{id}/tracking")
+def tracking_pengajuan(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("mahasiswa"))
+):
+    pengajuan = db.query(Pengajuan).filter(
+        Pengajuan.id == id,
+        Pengajuan.mahasiswa_id == current_user.id
+    ).first()
+
+    if not pengajuan:
+        raise HTTPException(
+            status_code=404,
+            detail="Pengajuan tidak ditemukan"
+        )
+
+    return {
+        "id": pengajuan.id,
+        "judul_perihal": pengajuan.judul_perihal,
+        "status": pengajuan.status,
+        "catatan_dosen": pengajuan.catatan_dosen,
+        "created_at": pengajuan.created_at
+    }
+@router.put("/pengajuan/{id}/revisi")
+def kirim_revisi(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("mahasiswa"))
+):
+    return {"message": "Endpoint revisi belum diimplementasikan"}

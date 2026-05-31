@@ -11,20 +11,17 @@ from dotenv import load_dotenv
 load_dotenv()
 JWT_SECRET = os.getenv("JWT_SECRET", "rahasia")
 ALGORITHM = "HS256"
-# Token berlaku 8 jam
 ACCESS_TOKEN_EXPIRE_HOURS = 8
 
 security = HTTPBearer()
 
 def create_token(data: dict):
-    """Buat JWT token dengan waktu kadaluarsa 8 jam"""
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Verifikasi dan decode JWT token dari header Authorization"""
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[ALGORITHM])
         return payload
@@ -40,11 +37,9 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         )
 
 def get_current_user(token: dict = Depends(verify_token), db: Session = Depends(get_db)):
-    """Ambil data user dari database berdasarkan id di dalam token"""
     user_id = token.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Token tidak mengandung data user")
-    
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=401, detail="User tidak ditemukan")
@@ -53,22 +48,11 @@ def get_current_user(token: dict = Depends(verify_token), db: Session = Depends(
 def require_role(*roles):
     def checker(current_user: User = Depends(get_current_user)):
         user_role = current_user.role.strip().lower()
-
         allowed_roles = [r.strip().lower() for r in roles]
-
         if user_role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Role '{current_user.role}' tidak memiliki akses"
-            )
-        return current_user
-
-    return checker
-    def checker(current_user: User = Depends(get_current_user)):
-        if current_user.role not in roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Akses ditolak. Halaman ini hanya untuk: {', '.join(roles)}"
             )
         return current_user
     return checker
