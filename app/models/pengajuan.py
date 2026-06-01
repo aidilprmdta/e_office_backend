@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, ForeignKey, TIMESTAMP, Dat
 from sqlalchemy.sql import func
 from app.config.database import Base
 
+
 class Pengajuan(Base):
     __tablename__ = "pengajuan"
 

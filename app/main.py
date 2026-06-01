@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
@@ -9,17 +9,13 @@ from app.routers import auth, dosen, mahasiswa, admin, notifikasi as notifikasi_
 from app.routers import search, verifikasi
 
 
-# =====================================================
-# CREATE DATABASE TABLES
-# =====================================================
 user.Base.metadata.create_all(bind=engine)
 pengajuan.Base.metadata.create_all(bind=engine)
+pengajuan_status_log.Base.metadata.create_all(bind=engine)
 notifikasi.Base.metadata.create_all(bind=engine)
+run_migrations()
 
 
-# =====================================================
-# FASTAPI APP
-# =====================================================
 app = FastAPI(
     title="E-Office Kampus API",
     description="Sistem Informasi Surat-Menyurat & Tugas Akhir",
@@ -43,19 +39,30 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
-# =====================================================
-# STATIC FILES
-# =====================================================
+@app.middleware("http")
+async def handle_options_preflight(request: Request, call_next):
+    """Pastikan preflight OPTIONS tidak gagal sebelum auth middleware."""
+    if request.method == "OPTIONS":
+        origin = request.headers.get("origin", "*")
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+                "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Origin",
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Max-Age": "86400",
+            },
+        )
+    return await call_next(request)
+
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-
-# =====================================================
-# ROUTERS
-# =====================================================
 app.include_router(auth.router)
 app.include_router(mahasiswa.router)
 app.include_router(dosen.router)
@@ -64,10 +71,11 @@ app.include_router(notifikasi_router.router)
 app.include_router(search.router)
 app.include_router(verifikasi.router)
 
+app.include_router(search.router)
 
-# =====================================================
-# ROOT
-# =====================================================
+app.include_router(verifikasi.router)
+
+
 @app.get("/")
 def read_root():
     return {

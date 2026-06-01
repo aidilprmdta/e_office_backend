@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional
 import shutil
 import os
@@ -7,9 +8,20 @@ import uuid
 
 from app.config.database import get_db
 from app.models.pengajuan import Pengajuan
+from app.models.notifikasi import Notifikasi
 from app.models.user import User
-from app.schemas.pengajuan import PengajuanResponse
+from app.schemas.pengajuan import PengajuanResponse, TrackingResponse, TimelineItem
 from app.middleware.auth import require_role
+from app.core.pengajuan_status import (
+    normalize_status,
+    PengajuanStatus,
+)
+from app.services.pengajuan_service import (
+    log_status_change,
+    notify_mahasiswa,
+    create_initial_log,
+    build_tracking_response,
+)
 
 router = APIRouter(
     prefix="/api/mahasiswa",
@@ -32,6 +44,18 @@ def validate_file(file: UploadFile):
 
     if size > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="Ukuran file maksimal 5MB")
+
+
+
+def _save_upload(file: UploadFile) -> str:
+    validate_file(file)
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    safe_name = file.filename.replace(" ", "_")
+    filename = f"{uuid.uuid4()}_{safe_name}"
+    path = os.path.join(UPLOAD_DIR, filename)
+    with open(path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return filename
 
 
 @router.post("/pengajuan", response_model=PengajuanResponse)
@@ -69,10 +93,14 @@ def buat_pengajuan(
         judul_perihal=judul_perihal,
         kategori=kategori,
         deskripsi=deskripsi,
-        file_url=file_url
+        file_url=file_url,
+        status=PengajuanStatus.DIAJUKAN.value,
     )
 
     db.add(pengajuan)
+    db.flush()
+    create_initial_log(db, pengajuan, current_user.id)
+    notify_reviewers(db, pengajuan, current_user)
     db.commit()
     db.refresh(pengajuan)
     return pengajuan
@@ -93,7 +121,7 @@ def get_pengajuan_saya(
 def hapus_pengajuan(
     id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("mahasiswa"))
+    current_user: User = Depends(require_role("mahasiswa")),
 ):
     """Hapus pengajuan milik mahasiswa (hanya yang masih Pending)"""
     pengajuan = db.query(Pengajuan).filter(

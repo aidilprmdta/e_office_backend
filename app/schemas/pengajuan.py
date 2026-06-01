@@ -1,12 +1,14 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, field_validator
+from typing import Optional, List, Any
 from datetime import datetime
+
 
 class PengajuanCreate(BaseModel):
     jenis_pengajuan: str
     kategori: Optional[str] = None
     judul_perihal: str
     deskripsi: Optional[str] = None
+
 
 class PengajuanUpdate(BaseModel):
     status: str
@@ -29,5 +31,31 @@ class PengajuanResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
+
+
+class VerifikasiSuratResponse(BaseModel):
+    valid: bool
+    pesan: str
+    kode_verifikasi: Optional[str] = None
+    judul_perihal: Optional[str] = None
+    jenis_pengajuan: Optional[str] = None
+    kategori: Optional[str] = None
+    status: Optional[str] = None
+    nama_mahasiswa: Optional[str] = None
+    tanggal_pengajuan: Optional[datetime] = None
+    tanggal_selesai: Optional[datetime] = None
+
+
+class SearchResultItem(BaseModel):
+    tipe: str
+    id: int
+    judul: str
+    subjudul: Optional[str] = None
+    status: Optional[str] = None
+    jenis_pengajuan: Optional[str] = None
+    kategori: Optional[str] = None
+    kode_verifikasi: Optional[str] = None
+    nama_mahasiswa: Optional[str] = None
+    created_at: Optional[datetime] = None
+    route_hint: Optional[str] = None
