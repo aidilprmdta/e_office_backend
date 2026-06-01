@@ -18,7 +18,6 @@ security = HTTPBearer()
 
 
 def create_token(data: dict):
-    """Buat JWT token dengan waktu kadaluarsa 8 jam"""
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     to_encode.update({"exp": expire})
@@ -26,7 +25,6 @@ def create_token(data: dict):
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Verifikasi dan decode JWT token dari header Authorization"""
     try:
         payload = jwt.decode(
             credentials.credentials, JWT_SECRET, algorithms=[ALGORITHM]
@@ -43,15 +41,10 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
             detail="Token tidak valid",
         )
 
-
-def get_current_user(
-    token: dict = Depends(verify_token), db: Session = Depends(get_db)
-):
-    """Ambil data user dari database berdasarkan id di dalam token"""
+def get_current_user(token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     user_id = token.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Token tidak mengandung data user")
-
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=401, detail="User tidak ditemukan")
@@ -68,5 +61,4 @@ def require_role(*roles):
                 detail=f"Role '{current_user.role}' tidak memiliki akses. Hanya untuk: {', '.join(allowed_roles)}",
             )
         return current_user
-
     return checker

@@ -7,6 +7,7 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin, UserResponse
 from app.middleware.auth import create_token, get_current_user
 
+
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -98,4 +99,9 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 
 @router.get("/me")
 def get_me(current_user: User = Depends(get_current_user)):
-    return UserResponse.model_validate(current_user)
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "nama": current_user.nama,
+        "role": current_user.role
+    }

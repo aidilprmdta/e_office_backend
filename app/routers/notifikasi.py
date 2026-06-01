@@ -7,6 +7,7 @@ from app.middleware.auth import get_current_user
 from app.models.user import User
 from app.schemas.notifikasi import NotifikasiResponse
 
+
 router = APIRouter(prefix="/api/notifikasi", tags=["Notifikasi"])
 
 
@@ -69,3 +70,18 @@ def baca_semua(
     ).update({"is_read": True})
     db.commit()
     return {"message": "Semua notifikasi sudah ditandai dibaca"}
+@router.put("/{id}/baca")
+def baca_notifikasi(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    notif = db.query(Notifikasi).filter(
+        Notifikasi.id == id,
+        Notifikasi.user_id == current_user.id
+    ).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notifikasi tidak ditemukan")
+    notif.is_read = True
+    db.commit()
+    return {"message": "Notifikasi sudah dibaca"}

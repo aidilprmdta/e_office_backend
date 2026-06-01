@@ -4,61 +4,53 @@ from sqlalchemy.orm import Session
 from app.config.database import get_db
 from app.models.pengajuan import Pengajuan
 from app.models.user import User
-from app.schemas.pengajuan import VerifikasiSuratResponse
-from app.core.pengajuan_status import normalize_status, PengajuanStatus
 
-router = APIRouter(prefix="/api/verifikasi", tags=["Verifikasi Surat"])
+router = APIRouter(prefix="/api/verifikasi", tags=["Verifikasi"])
 
 
-def _normalize_kode(raw: str) -> str:
-    return raw.strip().upper().replace(" ", "")
-
-
-@router.get("/{kode}", response_model=VerifikasiSuratResponse)
+@router.get("/{kode}")
 def verifikasi_surat(kode: str, db: Session = Depends(get_db)):
-    """Endpoint publik — verifikasi keaslian surat via kode QR/barcode."""
-    kode_norm = _normalize_kode(kode)
-    if len(kode_norm) < 6:
-        raise HTTPException(status_code=400, detail="Format kode tidak valid")
+    """
+    Verifikasi keaslian surat berdasarkan kode QR.
+    Format kode: EO-{id}-{mahasiswa_id}
+    """
+    kode = kode.strip().upper()
 
-    row = (
-        db.query(Pengajuan, User.nama.label("nama_mahasiswa"))
-        .join(User, Pengajuan.mahasiswa_id == User.id)
-        .filter(Pengajuan.kode_verifikasi == kode_norm)
-        .first()
-    )
+    # Parse format kode: EO-0001-9
+    try:
+        parts = kode.split("-")
+        if len(parts) < 3 or parts[0] != "EO":
+            raise ValueError("Format kode tidak valid")
+        pengajuan_id = int(parts[1])
+        mahasiswa_id = int(parts[2])
+    except (ValueError, IndexError):
+        return {
+            "valid": False,
+            "pesan": "Format kode tidak dikenali. Pastikan kode QR berasal dari dokumen resmi E-Office.",
+        }
 
-    if not row:
-        return VerifikasiSuratResponse(
-            valid=False,
-            pesan="Kode tidak ditemukan dalam sistem. Surat mungkin palsu atau belum terdaftar.",
-        )
+    pengajuan = db.query(Pengajuan).filter(
+        Pengajuan.id == pengajuan_id,
+        Pengajuan.mahasiswa_id == mahasiswa_id,
+    ).first()
 
-    p, nama_mhs = row
-    status = normalize_status(p.status)
+    if not pengajuan:
+        return {
+            "valid": False,
+            "pesan": "Surat tidak ditemukan. Kode ini tidak terdaftar dalam sistem.",
+        }
 
-    if status != PengajuanStatus.SELESAI.value:
-        return VerifikasiSuratResponse(
-            valid=False,
-            pesan=f"Surat terdaftar tetapi belum selesai (status: {status.replace('_', ' ')}).",
-            kode_verifikasi=p.kode_verifikasi,
-            judul_perihal=p.judul_perihal,
-            jenis_pengajuan=p.jenis_pengajuan,
-            kategori=p.kategori,
-            status=status,
-            nama_mahasiswa=nama_mhs,
-            tanggal_pengajuan=p.created_at,
-        )
+    # Ambil nama mahasiswa
+    mahasiswa = db.query(User).filter(User.id == pengajuan.mahasiswa_id).first()
 
-    return VerifikasiSuratResponse(
-        valid=True,
-        pesan="Surat terverifikasi — dokumen terdaftar resmi di E-Office Kampus.",
-        kode_verifikasi=p.kode_verifikasi,
-        judul_perihal=p.judul_perihal,
-        jenis_pengajuan=p.jenis_pengajuan,
-        kategori=p.kategori,
-        status=status,
-        nama_mahasiswa=nama_mhs,
-        tanggal_pengajuan=p.created_at,
-        tanggal_selesai=p.updated_at or p.created_at,
-    )
+    return {
+        "valid": True,
+        "pesan": "Surat terverifikasi dan terdaftar resmi dalam sistem E-Office Kampus.",
+        "kode_verifikasi": kode,
+        "judul_perihal": pengajuan.judul_perihal,
+        "kategori": pengajuan.kategori,
+        "jenis_pengajuan": pengajuan.jenis_pengajuan,
+        "status": pengajuan.status,
+        "nama_mahasiswa": mahasiswa.nama if mahasiswa else None,
+        "created_at": pengajuan.created_at,
+    }
