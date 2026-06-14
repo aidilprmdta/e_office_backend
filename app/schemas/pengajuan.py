@@ -59,3 +59,29 @@ class SearchResultItem(BaseModel):
     nama_mahasiswa: Optional[str] = None
     created_at: Optional[datetime] = None
     route_hint: Optional[str] = None
+
+
+class StatusUpdateRequest(BaseModel):
+    status: str
+    catatan: Optional[str] = None
+    catatan_revisi: Optional[str] = None
+
+
+class TimelineItem(BaseModel):
+    status: str
+    catatan: Optional[str] = None
+    at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class TrackingResponse(BaseModel):
+    pengajuan_id: int
+    status_saat_ini: str
+    catatan_revisi: Optional[str] = None
+    file_hasil_url: Optional[str] = None
+    file_url: Optional[str] = None
+    kode_verifikasi: Optional[str] = None
+    timeline: List[TimelineItem] = []
+
+    model_config = {"from_attributes": True}

@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, TIMESTAMP, DateTime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.config.database import Base
 
 
@@ -19,3 +20,16 @@ class Pengajuan(Base):
     catatan_revisi = Column(Text, nullable=True)
     file_hasil_url = Column(String(255), nullable=True)
     updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
+    kode_verifikasi = Column(String(32), nullable=True)
+
+    mahasiswa = relationship(
+        "User",
+        back_populates="pengajuan_list",
+        foreign_keys=[mahasiswa_id],
+    )
+
+    status_logs = relationship(
+        "PengajuanStatusLog",
+        back_populates="pengajuan",
+        cascade="all, delete-orphan",
+    )

@@ -3,20 +3,19 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from passlib.context import CryptContext
 from typing import Optional
+from datetime import datetime, timedelta
+from collections import defaultdict
 
 from app.config.database import get_db
 from app.models.user import User
 from app.models.pengajuan import Pengajuan
-from app.schemas.user import UserCreate, UserAdminUpdate
+from app.schemas.user import UserCreate, UserUpdate, UserAdminUpdate
 from app.middleware.auth import require_role
-from app.schemas.user import UserCreate, UserUpdate
 import shutil
 import os
 import uuid
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -50,27 +49,6 @@ def dashboard_admin(
 # =====================================================
 # ANALYTICS (untuk chart di DashboardAdmin)
 # =====================================================
-@router.get("/analytics")
-def get_analytics(
-    bulan: int = 12,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
-):
-    total_surat = db.query(func.count(Pengajuan.id)).filter(Pengajuan.jenis_pengajuan == "Surat").scalar()
-    total_ta = db.query(func.count(Pengajuan.id)).filter(Pengajuan.jenis_pengajuan == "Tugas Akhir").scalar()
-    total_pending = db.query(func.count(Pengajuan.id)).filter(Pengajuan.status == "Pending").scalar()
-    total_disetujui = db.query(func.count(Pengajuan.id)).filter(Pengajuan.status == "Disetujui").scalar()
-    total_ditolak = db.query(func.count(Pengajuan.id)).filter(Pengajuan.status == "Ditolak").scalar()
-    total_mahasiswa = db.query(func.count(User.id)).filter(User.role == "mahasiswa").scalar()
-    total_dosen = db.query(func.count(User.id)).filter(User.role == "dosen").scalar()
-
-    return {
-        "jenis": {"surat": total_surat, "tugas_akhir": total_ta},
-        "status": {"pending": total_pending, "disetujui": total_disetujui, "ditolak": total_ditolak},
-        "user": {"mahasiswa": total_mahasiswa, "dosen": total_dosen},
-    }
-
-
 @router.get("/analytics")
 def dashboard_analytics(
     db: Session = Depends(get_db),
@@ -219,9 +197,6 @@ def delete_user(
     return {"message": f"User '{user.username}' berhasil dihapus"}
 
 
-# =====================================================
-# GET ALL PENGAJUAN
-# =====================================================
 # =====================================================
 # GET ALL PENGAJUAN
 # =====================================================

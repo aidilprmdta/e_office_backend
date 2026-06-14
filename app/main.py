@@ -1,10 +1,13 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
 from app.config.database import engine
+from app.config.migrate import run_migrations
 from app.models import user, pengajuan, notifikasi
+from app.models import pengajuan_status_log
 from app.routers import auth, dosen, mahasiswa, admin, notifikasi as notifikasi_router
 from app.routers import search, verifikasi
 
@@ -69,10 +72,6 @@ app.include_router(dosen.router)
 app.include_router(admin.router)
 app.include_router(notifikasi_router.router)
 app.include_router(search.router)
-app.include_router(verifikasi.router)
-
-app.include_router(search.router)
-
 app.include_router(verifikasi.router)
 
 
