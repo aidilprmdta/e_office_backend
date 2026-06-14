@@ -1,165 +1,60 @@
-# E-Office Kampus — Backend API
+# E-Office Backend
 
-Backend untuk Sistem Informasi Surat-Menyurat & Tugas Akhir.
-Dibangun dengan **FastAPI (Python) + MySQL**.
+Panduan singkat menjalankan backend FastAPI (Python).
 
----
+Prasyarat
 
-## ⚙️ Cara Setup & Menjalankan
+- Python 3.11+ (disarankan)
+- pip
+- MySQL atau gunakan konfigurasi database yang ada di `app/config/database.py`
 
-### 1. Prasyarat
-- Python 3.10+
-- MySQL (via XAMPP atau langsung)
-- Git
+Instalasi & jalankan (Windows PowerShell)
 
-### 2. Install Dependencies
+1. Buat virtualenv dan aktifkan:
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
+2. Install dependensi:
+   ```powershell
+   pip install -r requirements.txt
+   ```
+3. Siapkan file environment (contoh `.env`) jika diperlukan (lihat `app/config/database.py` untuk variabel yang dibaca).
+4. Jalankan server (port default 8000):
+   ```powershell
+   uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+   ```
 
-```bash
-pip install -r requirements.txt
-```
+Catatan penting
 
-### 3. Buat Database MySQL
+- Semua router di-include dengan prefix `/api`. Endpoint umum:
+  - POST /api/auth/register
+  - POST /api/auth/login
+  - GET /api/auth/me
+  - POST /api/mahasiswa/pengajuan
+  - GET /api/mahasiswa/pengajuan/me
+  - GET /api/dosen/pengajuan
+  - ... (lihat folder `app/routers`)
 
-Buka MySQL Workbench atau phpMyAdmin, jalankan:
+- Pastikan CORS middleware mengizinkan origin frontend (mis. http://localhost:5173). Jika ada error CORS, cek `app/main.py` dan urutan middleware/routers.
 
-```sql
-CREATE DATABASE db_eoffice;
-```
+Troubleshooting cepat
 
-> **Catatan:** Tabel akan dibuat otomatis oleh SQLAlchemy saat server pertama kali jalan.
-> Kamu **tidak perlu** buat tabel manual.
+- 404 Not Found: cek apakah server sudah berjalan di `127.0.0.1:8000` dan prefix `/api` aktif.
+- 422 Unprocessable Entity saat submit FormData: pastikan field nama cocok dengan parameter di router dan header tidak memaksa `Content-Type: application/json` ketika mengirim FormData (frontend harus mengirim FormData tanpa override header).
+- 403 Forbidden: biasanya role/token tidak sesuai. Pastikan token JWT valid dan user memiliki role yang benar.
+- 500 Internal Server Error: lihat log server di terminal untuk traceback.
 
-### 4. Setting Environment
+Database
 
-Edit file `.env` sesuai konfigurasi MySQL kamu
+- Schema dibuat otomatis pada startup (`Base.metadata.create_all`) — cek `app/main.py`.
+- Untuk produksi gunakan migrasi (alembic) — belum disertakan di project ini.
 
-### 5. Jalankan Server
+Debug & development
 
-```bash
-uvicorn app.main:app --reload --port 8000
-```
+- Gunakan `--reload` saat pengembangan.
+- Pastikan file `uploads/` ada dan writable untuk upload.
 
-Server berjalan di: `http://localhost:8000`
-Dokumentasi API: `http://localhost:8000/docs`
+Kontak
 
----
-
-## 📋 Daftar Endpoint API
-
-### 🔐 Auth (`/api/auth`)
-| Method | Endpoint | Akses | Keterangan |
-|--------|----------|-------|------------|
-| POST | `/api/auth/register` | Public | Daftar akun baru |
-| POST | `/api/auth/login` | Public | Login, dapat token JWT |
-| GET | `/api/auth/me` | Semua (login) | Cek data user aktif |
-
-### 📄 Pengajuan (`/api/pengajuan`)
-| Method | Endpoint | Akses | Keterangan |
-|--------|----------|-------|------------|
-| POST | `/api/pengajuan/` | Mahasiswa | Buat pengajuan baru + upload file |
-| GET | `/api/pengajuan/saya` | Mahasiswa | Lihat riwayat pengajuan sendiri |
-| DELETE | `/api/pengajuan/{id}` | Mahasiswa | Hapus pengajuan (hanya pending) |
-| GET | `/api/pengajuan/semua` | Dosen, Admin | Lihat semua pengajuan + nama mahasiswa |
-| PUT | `/api/pengajuan/{id}` | Dosen | Setujui atau tolak pengajuan |
-| GET | `/api/pengajuan/download/{filename}` | Semua (login) | Download file berkas |
-
-### 🔔 Notifikasi (`/api/notifikasi`)
-| Method | Endpoint | Akses | Keterangan |
-|--------|----------|-------|------------|
-| GET | `/api/notifikasi/` | Semua (login) | Lihat semua notifikasi |
-| GET | `/api/notifikasi/belum-dibaca` | Semua (login) | Jumlah notif belum dibaca (badge FE) |
-| PUT | `/api/notifikasi/baca-semua` | Semua (login) | Tandai semua sudah dibaca |
-
-### 👤 Admin (`/api/admin`)
-| Method | Endpoint | Akses | Keterangan |
-|--------|----------|-------|------------|
-| GET | `/api/admin/dashboard` | Admin | Card stats untuk dashboard |
-| GET | `/api/admin/users` | Admin | Daftar semua user |
-| POST | `/api/admin/users` | Admin | Tambah user baru |
-| DELETE | `/api/admin/users/{id}` | Admin | Hapus akun user |
-
-### 📬 Workflow Surat v2 (`/api/admin` + `/api/mahasiswa`)
-| Method | Endpoint | Akses | Keterangan |
-|--------|----------|-------|------------|
-| PUT | `/api/admin/pengajuan/{id}/status` | Admin, Dosen | Update status workflow |
-| POST | `/api/admin/pengajuan/{id}/upload-hasil` | Admin, Dosen | Upload PDF surat jadi |
-| GET | `/api/admin/pengajuan/{id}/tracking` | Admin, Dosen | Timeline status |
-| GET | `/api/mahasiswa/pengajuan/{id}/tracking` | Mahasiswa | Timeline milik sendiri |
-| PUT | `/api/mahasiswa/pengajuan/{id}/revisi` | Mahasiswa | Kirim ulang setelah revisi |
-
-**Status workflow:** `diajukan` → `diproses_admin` → `menunggu_tanda_tangan` → `selesai` / `perlu_revisi` / `ditolak`
-
-**Migrasi database manual:** jalankan `database/migrations_v2.sql` di MySQL, atau restart server (auto via `app/config/migrate.py`).
-
----
-
-## 🌐 Port & Frontend
-
-| Layanan | Port default | URL |
-|---------|--------------|-----|
-| Backend FastAPI | 8000 | http://localhost:8000 |
-| Frontend Vite | 5173 | http://localhost:5173 |
-| API base (FE `.env`) | — | `VITE_API_BASE_URL=http://localhost:8000/api` |
-
----
-
-## 🔑 Cara Kirim Token ke API (untuk FE)
-
-Setelah login, simpan `access_token` dari response.
-Kirim di setiap request yang butuh login:
-
-```
-Header:
-Authorization: Bearer <token_disini>
-```
-
-Contoh di Axios (React):
-```js
-axios.get('/api/pengajuan/saya', {
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem('token')}`
-  }
-})
-```
-
----
-
-## 📁 Struktur Folder
-
-```
-e_office_backend/
-├── app/
-│   ├── main.py           ← Entry point, CORS, register router
-│   ├── config/
-│   │   └── database.py   ← Koneksi MySQL
-│   ├── models/           ← Definisi tabel database (SQLAlchemy)
-│   │   ├── user.py
-│   │   ├── pengajuan.py
-│   │   └── notifikasi.py
-│   ├── schemas/          ← Validasi input/output (Pydantic)
-│   │   ├── user.py
-│   │   └── pengajuan.py
-│   ├── routers/          ← Semua endpoint API
-│   │   ├── auth.py
-│   │   ├── pengajuan.py
-│   │   ├── notifikasi.py
-│   │   └── admin.py
-│   └── middleware/
-│       └── auth.py       ← JWT verify, require_role
-├── uploads/              ← File PDF yang diupload mahasiswa
-├── .env                  ← Konfigurasi (JANGAN di-push ke GitHub!)
-├── requirements.txt
-└── README.md
-```
-
----
-
-## ❗ Troubleshooting
-
-**Error `Access-Control-Allow-Origin`** → Pastikan URL frontend ada di list `origins` di `app/main.py`
-
-**Error koneksi database** → Cek isi `.env`, pastikan XAMPP MySQL sudah nyala
-
-**`ModuleNotFoundError`** → Jalankan `pip install -r requirements.txt` ulang
-
-**Token expired** → Login ulang untuk dapat token baru (token berlaku 8 jam)
+- Dokumentasi endpoint ada di http://127.0.0.1:8000/docs setelah server dijalankan.
