@@ -16,7 +16,6 @@ def verifikasi_surat(kode: str, db: Session = Depends(get_db)):
     """
     kode = kode.strip().upper()
 
-    # Parse format kode: EO-0001-9
     try:
         parts = kode.split("-")
         if len(parts) < 3 or parts[0] != "EO":

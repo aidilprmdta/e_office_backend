@@ -23,9 +23,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
-# =====================================================
-# DASHBOARD
-# =====================================================
 @router.get("/dashboard")
 def dashboard_admin(
     db: Session = Depends(get_db),
@@ -45,10 +42,6 @@ def dashboard_admin(
         "total_ditolak": total_ditolak,
     }
 
-
-# =====================================================
-# ANALYTICS (untuk chart di DashboardAdmin)
-# =====================================================
 @router.get("/analytics")
 def dashboard_analytics(
     db: Session = Depends(get_db),
@@ -121,10 +114,6 @@ def get_all_users(
     users = db.query(User).all()
     return [{"id": u.id, "username": u.username, "nama": u.nama, "role": u.role} for u in users]
 
-
-# =====================================================
-# CREATE USER
-# =====================================================
 @router.post("/users")
 def create_user(
     data: UserCreate,
@@ -147,10 +136,6 @@ def create_user(
 
     return {"message": "User berhasil dibuat", "user": {"id": new_user.id, "username": new_user.username, "nama": new_user.nama, "role": new_user.role}}
 
-
-# =====================================================
-# UPDATE USER
-# =====================================================
 @router.put("/users/{id}")
 def update_user(
     id: int,
@@ -175,10 +160,6 @@ def update_user(
     db.refresh(user)
     return {"message": "User berhasil diperbarui", "user": {"id": user.id, "username": user.username, "nama": user.nama, "role": user.role}}
 
-
-# =====================================================
-# DELETE USER
-# =====================================================
 @router.delete("/users/{id}")
 def delete_user(
     id: int,
@@ -196,10 +177,6 @@ def delete_user(
     db.commit()
     return {"message": f"User '{user.username}' berhasil dihapus"}
 
-
-# =====================================================
-# GET ALL PENGAJUAN
-# =====================================================
 @router.get("/pengajuan")
 def get_semua_pengajuan(
     db: Session = Depends(get_db),
