@@ -53,6 +53,12 @@ def normalize_status(status: str | None) -> str:
     return LEGACY_STATUS_MAP.get(s, s)
 
 
+def can_delete_status(status: str | None) -> bool:
+    """Hanya pengajuan berstatus Diajukan atau Perlu Revisi yang dapat dihapus."""
+    s = normalize_status(status)
+    return s in (PengajuanStatus.DIAJUKAN.value, PengajuanStatus.PERLU_REVISI.value)
+
+
 def assert_transition(old_status: str, new_status: str) -> None:
     old = normalize_status(old_status)
     new = normalize_status(new_status)

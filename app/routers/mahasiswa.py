@@ -15,6 +15,7 @@ from app.middleware.auth import require_role
 from app.core.pengajuan_status import (
     normalize_status,
     PengajuanStatus,
+    can_delete_status,
 )
 from app.services.pengajuan_service import (
     log_status_change,
@@ -22,6 +23,19 @@ from app.services.pengajuan_service import (
     create_initial_log,
     build_tracking_response,
 )
+
+
+def notify_reviewers(db: Session, pengajuan: Pengajuan, current_user: User):
+    """Kirim notifikasi ke dosen & admin saat ada pengajuan baru."""
+    reviewers = db.query(User).filter(User.role.in_(["dosen", "admin"])).all()
+    for reviewer in reviewers:
+        db.add(Notifikasi(
+            user_id=reviewer.id,
+            pesan=f"Pengajuan baru dari {current_user.nama}: {pengajuan.judul_perihal}",
+            tipe="pengajuan_baru",
+            pengajuan_id=pengajuan.id,
+            metadata_json={"pengajuan_id": pengajuan.id},
+        ))
 
 router = APIRouter(
     prefix="/api/mahasiswa",
@@ -132,10 +146,10 @@ def hapus_pengajuan(
     if not pengajuan:
         raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
 
-    if pengajuan.status != "Pending":
+    if not can_delete_status(pengajuan.status):
         raise HTTPException(
             status_code=400,
-            detail="Hanya pengajuan berstatus Pending yang dapat dihapus"
+            detail="Hanya pengajuan berstatus Diajukan atau Perlu Revisi yang dapat dihapus"
         )
 
     if pengajuan.file_url:
