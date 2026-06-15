@@ -106,6 +106,68 @@ def _bulan_label(ym: str) -> str:
         return ym
 
 
+@router.get("/kategori-surat")
+def kategori_surat_detail(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    bulan: int = 24,
+):
+    """Detail kategori surat masuk beserta surat terbaru per kategori."""
+    bulan = max(3, min(bulan, 36))
+    since = datetime.utcnow() - timedelta(days=bulan * 31)
+
+    surat_rows = (
+        db.query(Pengajuan)
+        .filter(
+            Pengajuan.created_at >= since,
+            func.lower(Pengajuan.jenis_pengajuan) == "surat",
+        )
+        .order_by(Pengajuan.created_at.desc())
+        .all()
+    )
+
+    # group by kategori
+    grouped: dict[str, list] = defaultdict(list)
+    for p in surat_rows:
+        kat = (p.kategori or "Lainnya").strip() or "Lainnya"
+        grouped[kat].append(p)
+
+    result = []
+    total_surat = len(surat_rows) or 1
+
+    for kat, items in sorted(grouped.items(), key=lambda x: -len(x[1])):
+        # status breakdown
+        status_counts: dict[str, int] = defaultdict(int)
+        for p in items:
+            status_counts[p.status or "Pending"] += 1
+
+        # recent surat (max 5)
+        recent = []
+        for p in items[:5]:
+            mahasiswa = db.query(User).filter(User.id == p.mahasiswa_id).first()
+            recent.append({
+                "id": p.id,
+                "judul_perihal": p.judul_perihal,
+                "status": p.status,
+                "mahasiswa_nama": mahasiswa.nama if mahasiswa else "-",
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            })
+
+        result.append({
+            "kategori": kat,
+            "jumlah": len(items),
+            "persen": round((len(items) / total_surat) * 100, 1),
+            "status_breakdown": dict(status_counts),
+            "surat_terbaru": recent,
+        })
+
+    return {
+        "kategori_list": result,
+        "total_surat": len(surat_rows),
+        "total_kategori": len(result),
+    }
+
+
 @router.get("/users")
 def get_all_users(
     db: Session = Depends(get_db),
